@@ -248,14 +248,22 @@ const notify_1 = require("./notify");
         console.log('==========================================');
         console.log(summaryText);
         console.log('==========================================');
-        // 5. 发送通知 - 只有在有贴吧签到失败时才发送
-        const shouldNotify = process.env.ENABLE_NOTIFY === 'true' && failedCount > 0;
-        if (shouldNotify) {
+        // 5. 发送通知 - 启用通知后，每次运行结束都会发送结果
+        const notifyEnabled = process.env.ENABLE_NOTIFY === 'true';
+        const successfulTotal = successCount + alreadySignedCount;
+        if (notifyEnabled && failedCount > 0) {
             console.log('▶️ 步骤5: 发送通知 (由于签到失败而触发)');
             yield (0, notify_1.sendNotification)(summaryText);
         }
-        else if (process.env.ENABLE_NOTIFY === 'true') {
-            console.log('ℹ️ 签到全部成功，跳过通知发送');
+        else if (notifyEnabled) {
+            const successNotification = [
+                '✅ 今日贴吧签到完成',
+                `成功：${successfulTotal}/${tiebaList.length}`,
+                `本次签到：${successCount}`,
+                `此前已签：${alreadySignedCount}`
+            ].join('\n');
+            console.log('▶️ 步骤5: 发送每日签到成功通知');
+            yield (0, notify_1.sendNotification)(successNotification);
         }
         else {
             console.log('ℹ️ 通知功能未启用，跳过通知发送');
