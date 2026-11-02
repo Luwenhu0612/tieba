@@ -63,8 +63,15 @@ const crypto = __importStar(require("crypto"));
  * 构建通知标题
  * @returns 通知标题
  */
-function getNotifyTitle() {
-    return `百度贴吧自动签到 - ${(0, utils_1.formatDate)(new Date(), 'Asia/Shanghai', '+8').split(' ')[0]}`;
+function getNotifyTitle(label = '百度贴吧自动签到') {
+    const [year, month, day] = (0, utils_1.formatDate)(new Date(), 'Asia/Shanghai', '+8').split(' ')[0].split('/');
+    // 标题只展示简短原因，避免换行、过长内容或意外包含敏感凭证。
+    const safeLabel = label
+        .replace(/github_pat_[A-Za-z0-9_]+|Bearer\s+\S+|BDUSS[=:]\s*\S+/gi, '[凭证已隐藏]')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 40) || '签到异常';
+    return `${safeLabel} - ${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 }
 /**
  * 处理通知发送的结果
@@ -260,10 +267,9 @@ function sendPushPlus(options) {
  * @param summary - 要发送的通知内容
  * @returns 是否有任何通知发送成功
  */
-function sendNotification(summary) {
-    return __awaiter(this, void 0, void 0, function* () {
+function sendNotification(summary_1) {
+    return __awaiter(this, arguments, void 0, function* (summary, title = getNotifyTitle()) {
         console.log('📱 开始发送通知...');
-        const title = getNotifyTitle();
         let anySuccess = false;
         // Server酱通知
         if (process.env.SERVERCHAN_KEY) {

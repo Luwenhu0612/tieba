@@ -251,9 +251,17 @@ const notify_1 = require("./notify");
         // 5. 发送通知 - 启用通知后，每次运行结束都会发送结果
         const notifyEnabled = process.env.ENABLE_NOTIFY === 'true';
         const successfulTotal = successCount + alreadySignedCount;
-        if (notifyEnabled && failedCount > 0) {
+        if (notifyEnabled && tiebaList.length === 0) {
+            console.log('▶️ 步骤5: 发送异常通知 (未获取到贴吧列表)');
+            yield (0, notify_1.sendNotification)('⚠️ 未获取到关注的贴吧，无法确认签到完成。请检查BDUSS或贴吧关注列表。', (0, notify_1.getNotifyTitle)('未获取到贴吧列表'));
+        }
+        else if (notifyEnabled && summary.failedCount > 0) {
+            const reasons = Array.from(new Set(summary.signResults.failed.map(result => result.message.trim()).filter(Boolean)));
+            const reason = reasons.length > 1
+                ? `${reasons[0]}等${reasons.length}类原因`
+                : (reasons[0] || '部分贴吧签到失败');
             console.log('▶️ 步骤5: 发送通知 (由于签到失败而触发)');
-            yield (0, notify_1.sendNotification)(summaryText);
+            yield (0, notify_1.sendNotification)(summaryText, (0, notify_1.getNotifyTitle)(reason));
         }
         else if (notifyEnabled) {
             const successNotification = [
@@ -263,7 +271,7 @@ const notify_1 = require("./notify");
                 `此前已签：${alreadySignedCount}`
             ].join('\n');
             console.log('▶️ 步骤5: 发送每日签到成功通知');
-            yield (0, notify_1.sendNotification)(successNotification);
+            yield (0, notify_1.sendNotification)(successNotification, (0, notify_1.getNotifyTitle)('签到全部成功'));
         }
         else {
             console.log('ℹ️ 通知功能未启用，跳过通知发送');
@@ -285,7 +293,16 @@ const notify_1 = require("./notify");
         if (shouldNotify) {
             try {
                 console.log('▶️ 步骤5: 发送通知 (由于BDUSS失效或严重错误触发)');
-                yield (0, notify_1.sendNotification)(`❌ 签到脚本执行失败!\n\n错误信息: ${error.message}`);
+                const failureReason = errMsg.includes('缺少必要的环境变量: BDUSS')
+                    ? '未配置BDUSS'
+                    : isBdussError
+                        ? 'BDUSS验证失败'
+                        : /timeout|ETIMEDOUT|超时/i.test(errMsg)
+                            ? '网络请求超时'
+                            : /ECONN|ENOTFOUND|EAI_AGAIN|network|网络/i.test(errMsg)
+                                ? '网络连接失败'
+                                : `签到脚本异常：${errMsg}`;
+                yield (0, notify_1.sendNotification)(`❌ 签到脚本执行失败!\n\n错误信息: ${errMsg}`, (0, notify_1.getNotifyTitle)(failureReason));
             }
             catch (e) {
                 console.error(`❌ 发送错误通知失败: ${e.message}`);
